@@ -59,18 +59,21 @@ so i tried to make it more readable and removed the unused/dead code, here's the
 import functools
 def u(arr):
 	Q=[arr[i::3]for i in range(3)]
-	return Q
+	return Q 
+	#returns [[key[0], key[3], key[6], key[9], key[12]], [key[1], key[4], key[7], key[10], key[13]], [key[2], key[5], key[8], key[11], key[14]]]
 xor_two_bytes=lambda a,b:(ord(a)^ord(b)).to_bytes(1,'big')
 key='[redacted - 15 chars]'
 key = u(key)
 flag=open('input.txt','r').read()
-arr = [functools.reduce(xor_two_bytes,[(((ord(flag[i])&(~ord(key[j][i%5])))|((~ord(flag[i]))&(ord(key[j][i%5])))).to_bytes(1,"big"))for j in range(len(key))] ) for i in range(len(flag))]
+enc_flag = [functools.reduce(xor_two_bytes,[(((ord(flag[i])&(~ord(key[j][i%5])))|((~ord(flag[i]))&(ord(key[j][i%5])))).to_bytes(1,"big")) for j in range(len(key))] ) for i in range(len(flag))]
 
-encoded_flag=repr(b''.join(arr))
+enc_flag=repr(b''.join(enc_flag))
 output_file='output.txt'
-open(output_file,'w').write(encoded_flag)
+open(output_file,'w').write(enc_flag)
 	
 ```
+so here's a nice reference to understand how functools' reduce function works[and how the encoder works in general?]: https://www.python-course.eu/python3_lambda.php
+
 now it's clear that we need to use Input2 and Output2 to get the key and then use the key to get the flag
 so i made this script to get the key
 ```py
@@ -102,18 +105,18 @@ now that we have the key here's another z3 script to get the flag
 from z3 import * 
 import functools
 
-encoded_flag = b'\x02\x19\x01\x16Q\r\x07\nS\x02)\x1a1=EE2\x0e=G/D\nRY)\nV\x1bJ'
+enc_flag = b'\x02\x19\x01\x16Q\r\x07\nS\x02)\x1a1=EE2\x0e=G/D\nRY)\nV\x1bJ'
 key = [27, 253, 144, 60, 191, 240, 60, 191, 225, 10, 31, 119, 58, 191, 178]
 
 xor_two_bytes=lambda a,b:(a^b)
 
 s=Solver()
 key = [key[i::3] for i in range(3)]
-flag = [BitVec("flag{}".format(i),8) for i in range(30)] #because the encoded flagg is 30 bytes long
+flag = [BitVec("flag{}".format(i),8) for i in range(30)] #because the enc flag is 30 bytes long
 
 constraints = [functools.reduce(xor_two_bytes,[(((flag[i])&(~key[j][i%5]))|((~(flag[i]))&(key[j][i%5]))) for j in range(len(key))] ) for i in range(len(flag))]
-for i in range(len(encoded_flag)):
-	s.add( constraints[i] == encoded_flag[i])
+for i in range(len(enc_flag)):
+	s.add( constraints[i] == enc_flag[i])
 if (s.check()==sat):
 	f=""
 	solution = s.model()
